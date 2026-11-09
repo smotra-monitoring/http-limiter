@@ -48,7 +48,7 @@ async fn rate_limits_per_ip() {
     );
     assert_eq!(status(&app, make_request("2.2.2.2")).await, StatusCode::OK);
     assert_eq!(
-        metric(&app, "http_limiter_ip_block_events_initiated_total").await,
+        metric(&app, "http_limiter_ip_block_events_total").await,
         "1"
     );
     assert_eq!(
@@ -74,7 +74,7 @@ async fn block_time_outlasts_rate_limit_window() {
     );
 
     assert_eq!(
-        metric(&app, "http_limiter_ip_block_events_initiated_total").await,
+        metric(&app, "http_limiter_ip_block_events_total").await,
         "1"
     );
     assert_eq!(
@@ -90,7 +90,7 @@ async fn block_time_outlasts_rate_limit_window() {
     );
 
     assert_eq!(
-        metric(&app, "http_limiter_ip_block_events_initiated_total").await,
+        metric(&app, "http_limiter_ip_block_events_total").await,
         "1"
     );
     assert_eq!(
@@ -102,7 +102,7 @@ async fn block_time_outlasts_rate_limit_window() {
     assert_eq!(status(&app, make_request("1.1.1.1")).await, StatusCode::OK);
 
     assert_eq!(
-        metric(&app, "http_limiter_ip_block_events_initiated_total").await,
+        metric(&app, "http_limiter_ip_block_events_total").await,
         "1"
     );
     assert_eq!(
