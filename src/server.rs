@@ -4,7 +4,8 @@ use crate::{cleanup, config::Config, router::build_router, state::AppState};
 pub async fn run(config: Config) -> std::io::Result<()> {
     let listener = tokio::net::TcpListener::bind(config.bind_addr).await?;
     println!(
-        "IP Tracker server running on http://{}",
+        "IP Tracker server v{} running on http://{}",
+        env!("CARGO_PKG_VERSION"),
         listener.local_addr()?
     );
 
