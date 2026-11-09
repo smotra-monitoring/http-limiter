@@ -1,6 +1,27 @@
-use std::{net::SocketAddr, str::FromStr, time::Duration};
+use std::{fmt, net::SocketAddr, str::FromStr, time::Duration};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ConfigError {
+    RequestsPerWindowTooLarge,
+    ZeroBlockTime,
+    BlockTimeBelowWindow,
+}
+
+impl fmt::Display for ConfigError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            Self::RequestsPerWindowTooLarge => {
+                "requests_per_window must be less than timestamp_bucket_size"
+            }
+            Self::ZeroBlockTime => "block_time must be greater than zero",
+            Self::BlockTimeBelowWindow => "block_time must be greater than rate_limit_window",
+        })
+    }
+}
+
+impl std::error::Error for ConfigError {}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct Config {
     pub bind_addr: SocketAddr,
     pub timestamp_bucket_size: usize,
@@ -54,17 +75,17 @@ impl Config {
         }
     }
 
-    pub fn validate(&self) -> Result<(), String> {
+    pub fn validate(self) -> Result<Self, ConfigError> {
         if self.timestamp_bucket_size <= self.requests_per_window {
-            return Err("requests_per_window must be less than timestamp_bucket_size".into());
+            return Err(ConfigError::RequestsPerWindowTooLarge);
         }
         if self.block_time == Duration::from_secs(0) {
-            return Err("block_time must be greater than zero".into());
+            return Err(ConfigError::ZeroBlockTime);
         }
         if self.block_time < self.rate_limit_window {
-            return Err("block_time must be greater than rate_limit_window".into());
+            return Err(ConfigError::BlockTimeBelowWindow);
         }
-        Ok(())
+        Ok(self)
     }
 }
 
@@ -78,7 +99,7 @@ mod tests {
 
     #[test]
     fn default_config_is_valid() {
-        assert_eq!(Config::default().validate(), Ok(()));
+        assert_eq!(Config::default().validate(), Ok(Config::default()));
     }
 
     #[test]
@@ -114,7 +135,7 @@ mod tests {
             timestamp_bucket_size: 50,
             ..Config::default()
         };
-        assert_eq!(cfg.validate(), Ok(()));
+        assert_eq!(cfg.clone().validate(), Ok(cfg));
     }
 
     #[test]
@@ -123,7 +144,7 @@ mod tests {
             max_unique_ips: 100_001,
             ..Config::default()
         };
-        assert_eq!(cfg.validate(), Ok(()));
+        assert_eq!(cfg.clone().validate(), Ok(cfg));
     }
 
     #[test]
@@ -132,10 +153,7 @@ mod tests {
             block_time: Duration::ZERO,
             ..Config::default()
         };
-        assert_eq!(
-            cfg.validate(),
-            Err("block_time must be greater than zero".to_string())
-        );
+        assert_eq!(cfg.validate(), Err(ConfigError::ZeroBlockTime));
     }
 
     #[test]
@@ -145,7 +163,7 @@ mod tests {
             block_time: Duration::from_secs(1),
             ..Config::default()
         };
-        assert_eq!(cfg.validate(), Ok(()));
+        assert_eq!(cfg.clone().validate(), Ok(cfg));
     }
 
     #[test]
@@ -157,6 +175,6 @@ mod tests {
             block_time: Duration::ZERO,
             ..Config::default()
         };
-        assert!(cfg.validate().unwrap_err().contains("requests_per_window"));
+        assert_eq!(cfg.validate(), Err(ConfigError::RequestsPerWindowTooLarge));
     }
 }
