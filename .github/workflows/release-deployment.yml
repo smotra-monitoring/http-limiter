@@ -162,7 +162,7 @@ jobs:
         run: |
           cd target/${{ matrix.target }}/release
           ARCHIVE="${REPO_NAME}-${RELEASE_TAG}-${{ matrix.target }}.tar.gz"
-          tar czf "$ARCHIVE" smotra smotra-cli
+          tar czf "$ARCHIVE" http-limiter
           sha256sum "$ARCHIVE" > "$ARCHIVE.sha256"
 
       - name: Package (Windows)
@@ -171,7 +171,7 @@ jobs:
         run: |
           cd target/${{ matrix.target }}/release
           ARCHIVE="${REPO_NAME}-${RELEASE_TAG}-${{ matrix.target }}.zip"
-          7z a "$ARCHIVE" smotra.exe smotra-cli.exe
+          7z a "$ARCHIVE" http-limiter.exe
           sha256sum "$ARCHIVE" > "$ARCHIVE.sha256"
 
       - name: Upload artifacts (Unix)
@@ -225,67 +225,3 @@ jobs:
             [ -e "$file" ] || continue
             gh release upload "${RELEASE_TAG}" "${file}" --clobber
           done
-            
-  deploy-github-pages:
-    needs: build
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Checkout main branch for install script
-        uses: actions/checkout@v7
-        with:
-          path: main
-        
-      - name: Organize release files
-        run: |
-          mkdir html
-          cd html
-                    
-          # Copy install script from main branch
-          cp ../main/deployments/install-script/smotra.sh smotra.sh
-          chmod +x smotra.sh
-          
-          # Create index.html for documentation
-          cat > index.html <<EOF
-          <!DOCTYPE html>
-          <html>
-          <head>
-              <title>Smotra Agent Install</title>
-              <meta charset="utf-8">
-              <style>
-                  body { font-family: sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
-                  pre { background: #f4f4f4; padding: 15px; border-radius: 5px; overflow-x: auto; }
-                  code { background: #f4f4f4; padding: 2px 5px; border-radius: 3px; }
-              </style>
-          </head>
-          <body>
-              <h1>Smotra Agent Installation</h1>
-              <p>Latest Version: <strong>${RELEASE_TAG}</strong></p>
-              
-              <h2>Quick Install</h2>
-              <pre><code>curl -fsSL https://install.smotra.net/smotra.sh | sh</code></pre>
-              
-              <h2>Documentation</h2>
-              <p>Visit <a href="https://github.com/${{ github.repository }}">GitHub Repository</a> for full documentation.</p>
-          </body>
-          </html>
-          EOF
-        
-      - name: Setup Pages
-        uses: actions/configure-pages@v6
-
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v5
-        with:
-          path: './html/' # Upload html directory (or your build folder if using a generator)
-
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v5
-        
