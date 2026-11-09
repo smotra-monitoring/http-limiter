@@ -10,7 +10,7 @@ pub(crate) struct IpPayload {
     pub(crate) ip: IpAddr,
 }
 
-pub(crate) async fn track_ip_handler(
+pub(crate) async fn check_ip_handler(
     State(state): State<SharedState>,
     Json(payload): Json<IpPayload>,
 ) -> Result<StatusCode, StatusCode> {
@@ -24,10 +24,11 @@ pub(crate) async fn track_ip_handler(
 
     // New IPs are rejected once the unique IP cap is reached
     if !records.contains_key(&payload.ip) && records.len() >= cfg.max_unique_ips {
+        println!("Unique IP limit exceeded for IP: {}", payload.ip);
         state
             .unique_ip_limit_exceeded_total
             .fetch_add(1, Ordering::Relaxed);
-        return Err(StatusCode::TOO_MANY_REQUESTS);
+        return Err(StatusCode::TOO_MANY_REQUESTS); // this is application issue due to unique IP cap, return Err
     }
 
     let timestamps = records
@@ -40,11 +41,12 @@ pub(crate) async fn track_ip_handler(
         }
     }
 
-    if timestamps.len() >= cfg.rate_limit_per_window {
+    if timestamps.len() >= cfg.requests_per_window {
+        println!("Rate limit exceeded for IP: {}", payload.ip);
         state
             .rate_limit_exceeded_total
             .fetch_add(1, Ordering::Relaxed);
-        return Err(StatusCode::TOO_MANY_REQUESTS);
+        return Ok(StatusCode::TOO_MANY_REQUESTS); // this is expected behavior for rate-limited IPs, return Ok
     }
 
     if timestamps.len() >= cfg.max_timestamps {

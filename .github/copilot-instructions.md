@@ -16,6 +16,8 @@
 - Run `cargo fmt`, `cargo clippy --all-targets` and `cargo test` before finishing.
 
 ## Improvement suggestions
+- Return `Ok(StatusCode::TOO_MANY_REQUESTS)` for rate-limited IPs and `Err(StatusCode::TOO_MANY_REQUESTS)` for unique IP cap violations.
+- Explore how to add "block time", instead of simple rate_limit_window
 - Replace `RwLock<BTreeMap>` with a sharded map (e.g. `dashmap`) to reduce write-lock contention on `/track`.
 - Add graceful shutdown (`with_graceful_shutdown` on ctrl-c/SIGTERM) and stop the cleanup task there.
 - Replace `println!` with `tracing`.

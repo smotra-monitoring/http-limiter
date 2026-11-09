@@ -34,7 +34,7 @@ async fn metric(app: &Router, name: &str) -> String {
 #[tokio::test]
 async fn rate_limits_per_ip() {
     let state = AppState::new(Config {
-        rate_limit_per_window: 2,
+        requests_per_window: 2,
         ..Config::default()
     });
     let app = build_router(state);
