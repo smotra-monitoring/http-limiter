@@ -6,7 +6,7 @@ use axum::{
 use http_limiter::{AppState, Config, build_router};
 use tower::ServiceExt;
 
-fn track_request(ip: &str) -> Request<Body> {
+fn make_request(ip: &str) -> Request<Body> {
     Request::post("/check")
         .header("content-type", "application/json")
         .body(Body::from(format!(r#"{{"ip":"{ip}"}}"#)))
@@ -39,13 +39,13 @@ async fn rate_limits_per_ip() {
     });
     let app = build_router(state);
 
-    assert_eq!(status(&app, track_request("1.1.1.1")).await, StatusCode::OK);
-    assert_eq!(status(&app, track_request("1.1.1.1")).await, StatusCode::OK);
+    assert_eq!(status(&app, make_request("1.1.1.1")).await, StatusCode::OK);
+    assert_eq!(status(&app, make_request("1.1.1.1")).await, StatusCode::OK);
     assert_eq!(
-        status(&app, track_request("1.1.1.1")).await,
+        status(&app, make_request("1.1.1.1")).await,
         StatusCode::TOO_MANY_REQUESTS
     );
-    assert_eq!(status(&app, track_request("2.2.2.2")).await, StatusCode::OK);
+    assert_eq!(status(&app, make_request("2.2.2.2")).await, StatusCode::OK);
     assert_eq!(
         metric(&app, "ip_tracker_rate_limit_exceeded_total").await,
         "1"
@@ -60,10 +60,10 @@ async fn caps_unique_ips() {
     });
     let app = build_router(state);
 
-    assert_eq!(status(&app, track_request("1.1.1.1")).await, StatusCode::OK);
-    assert_eq!(status(&app, track_request("1.1.1.1")).await, StatusCode::OK);
+    assert_eq!(status(&app, make_request("1.1.1.1")).await, StatusCode::OK);
+    assert_eq!(status(&app, make_request("1.1.1.1")).await, StatusCode::OK);
     assert_eq!(
-        status(&app, track_request("2.2.2.2")).await,
+        status(&app, make_request("2.2.2.2")).await,
         StatusCode::TOO_MANY_REQUESTS
     );
     assert_eq!(
