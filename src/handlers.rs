@@ -84,7 +84,9 @@ pub(crate) async fn check_ip_handler(
 
     if timestamps.len() >= cfg.requests_per_window {
         println!("Blocking IP: {}", payload.ip);
-        state.ip_block_initiated.fetch_add(1, Ordering::Relaxed);
+        state
+            .ip_block_events_initiated
+            .fetch_add(1, Ordering::Relaxed);
         record.blocked_until = Some(now + cfg.block_time);
 
         return Ok(http_429(cfg.block_time)); // this is expected behavior for rate-limited IPs, return Ok
@@ -109,7 +111,7 @@ pub(crate) async fn check_ip_handler(
 pub(crate) async fn metrics_handler(State(state): State<SharedState>) -> Result<String, Error> {
     let unique_ips_tracked = state.records_read()?.len();
     let total_reqs = state.total_requests.load(Ordering::Relaxed);
-    let ip_block_initiated = state.ip_block_initiated.load(Ordering::Relaxed);
+    let ip_block_events_initiated = state.ip_block_events_initiated.load(Ordering::Relaxed);
     let unique_cap_exceeded = state.unique_ip_limit_exceeded_total.load(Ordering::Relaxed);
     let ip_bucket_utiilization_spill_over = state
         .ip_bucket_utiilization_spill_over
@@ -117,32 +119,32 @@ pub(crate) async fn metrics_handler(State(state): State<SharedState>) -> Result<
     let blocked = state.requests_while_blocked.load(Ordering::Relaxed);
 
     Ok(format!(
-        "# HELP ip_tracker_unique_ips_total Total active unique IP addresses tracked in memory.\n\
-         # TYPE ip_tracker_unique_ips_total gauge\n\
-         ip_tracker_unique_ips_total {}\n\
+        "# HELP http_limiter_unique_ips_total Total active unique IP addresses tracked in memory.\n\
+         # TYPE http_limiter_unique_ips_total gauge\n\
+         http_limiter_unique_ips_total {}\n\
          \n\
-         # HELP ip_tracker_http_requests_total Total number of HTTP requests processed.\n\
-         # TYPE ip_tracker_http_requests_total counter\n\
-         ip_tracker_http_requests_total {}\n\
+         # HELP http_limiter_http_requests_total Total number of HTTP requests processed.\n\
+         # TYPE http_limiter_http_requests_total counter\n\
+         http_limiter_http_requests_total {}\n\
          \n\
-         # HELP ip_tracker_ip_block_initiated_total Total IP block-events initiated due to rate limiting.\n\
-         # TYPE ip_tracker_ip_block_initiated_total counter\n\
-         ip_tracker_ip_block_initiated_total {}\n\
+         # HELP http_limiter_ip_block_events_initiated_total Total IP block-events initiated due to rate limiting.\n\
+         # TYPE http_limiter_ip_block_events_initiated_total counter\n\
+         http_limiter_ip_block_events_initiated_total {}\n\
          \n\
-         # HELP ip_tracker_unique_ip_limit_exceeded_total Total requests rejected due to max unique IP capacity cap.\n\
-         # TYPE ip_tracker_unique_ip_limit_exceeded_total counter\n\
-         ip_tracker_unique_ip_limit_exceeded_total {}\n\
+         # HELP http_limiter_unique_ip_limit_exceeded_total Total requests rejected due to max unique IP capacity cap.\n\
+         # TYPE http_limiter_unique_ip_limit_exceeded_total counter\n\
+         http_limiter_unique_ip_limit_exceeded_total {}\n\
          \n\
-         # HELP ip_bucket_utiilization_spill_over Number of times the IP bucket utilization spilled over (if above 0, needed to be increased).\n\
-         # TYPE ip_bucket_utiilization_spill_over counter\n\
-         ip_bucket_utiilization_spill_over {}\n\
+         # HELP http_limiter_ip_bucket_utiilization_spill_over Number of times the IP bucket utilization spilled over (if above 0, needed to be increased).\n\
+         # TYPE http_limiter_ip_bucket_utiilization_spill_over counter\n\
+         http_limiter_ip_bucket_utiilization_spill_over {}\n\
          \n\
-         # HELP ip_tracker_requests_while_blocked_total Total requests rejected because the IP is in its block period.\n\
-         # TYPE ip_tracker_requests_while_blocked_total counter\n\
-         ip_tracker_requests_while_blocked_total {}\n",
+         # HELP http_limiter_requests_while_blocked_total Total requests rejected because the IP is in its block period.\n\
+         # TYPE http_limiter_requests_while_blocked_total counter\n\
+         http_limiter_requests_while_blocked_total {}\n",
         unique_ips_tracked,
         total_reqs,
-        ip_block_initiated,
+        ip_block_events_initiated,
         unique_cap_exceeded,
         ip_bucket_utiilization_spill_over,
         blocked
