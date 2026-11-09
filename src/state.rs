@@ -23,6 +23,7 @@ pub struct AppState {
     pub(crate) ip_block_initiated: AtomicU64,
     pub(crate) requests_while_blocked: AtomicU64,
     pub(crate) unique_ip_limit_exceeded_total: AtomicU64,
+    pub(crate) ip_bucket_utiilization_spill_over: AtomicU64,
 }
 
 /// `ip_records` lock was poisoned by a panic in another thread.
@@ -46,6 +47,7 @@ impl AppState {
             ip_block_initiated: AtomicU64::new(0),
             requests_while_blocked: AtomicU64::new(0),
             unique_ip_limit_exceeded_total: AtomicU64::new(0),
+            ip_bucket_utiilization_spill_over: AtomicU64::new(0),
         })
     }
 

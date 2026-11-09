@@ -85,20 +85,20 @@ pub(crate) async fn check_ip_handler(
     if timestamps.len() >= cfg.requests_per_window {
         println!("Blocking IP: {}", payload.ip);
         state.ip_block_initiated.fetch_add(1, Ordering::Relaxed);
-        let retry_after = if cfg.block_time.is_zero() {
-            // Without blocking, the oldest timestamp leaving the window frees a slot
-            timestamps
-                .front()
-                .map(|&t| (t + cfg.rate_limit_window).saturating_duration_since(now))
-                .unwrap_or_default()
-        } else {
-            record.blocked_until = Some(now + cfg.block_time);
-            cfg.block_time
-        };
-        return Ok(too_many_requests(retry_after)); // this is expected behavior for rate-limited IPs, return Ok
+        record.blocked_until = Some(now + cfg.block_time);
+
+        return Ok(too_many_requests(cfg.block_time)); // this is expected behavior for rate-limited IPs, return Ok
     }
 
-    if timestamps.len() >= cfg.max_timestamps {
+    // IMO this will never happen under normal circumstances
+    if timestamps.len() >= cfg.timestamp_bucket_size {
+        println!(
+            "(Require investigation) Timestamps exceeded max for IP: {}",
+            payload.ip
+        );
+        state
+            .ip_bucket_utiilization_spill_over
+            .fetch_add(1, Ordering::Relaxed);
         timestamps.pop_front();
     }
     timestamps.push_back(now);
@@ -113,6 +113,9 @@ pub(crate) async fn metrics_handler(
     let total_reqs = state.total_requests.load(Ordering::Relaxed);
     let ip_block_initiated = state.ip_block_initiated.load(Ordering::Relaxed);
     let unique_cap_exceeded = state.unique_ip_limit_exceeded_total.load(Ordering::Relaxed);
+    let ip_bucket_utiilization_spill_over = state
+        .ip_bucket_utiilization_spill_over
+        .load(Ordering::Relaxed);
     let blocked = state.requests_while_blocked.load(Ordering::Relaxed);
 
     Ok(format!(
@@ -132,10 +135,19 @@ pub(crate) async fn metrics_handler(
          # TYPE ip_tracker_unique_ip_limit_exceeded_total counter\n\
          ip_tracker_unique_ip_limit_exceeded_total {}\n\
          \n\
+         # HELP ip_bucket_utiilization_spill_over Number of times the IP bucket utilization spilled over (if above 0, needed to be increased).\n\
+         # TYPE ip_bucket_utiilization_spill_over counter\n\
+         ip_bucket_utiilization_spill_over {}\n\
+         \n\
          # HELP ip_tracker_requests_while_blocked_total Total requests rejected because the IP is in its block period.\n\
          # TYPE ip_tracker_requests_while_blocked_total counter\n\
          ip_tracker_requests_while_blocked_total {}\n",
-        unique_ips_tracked, total_reqs, ip_block_initiated, unique_cap_exceeded, blocked
+        unique_ips_tracked,
+        total_reqs,
+        ip_block_initiated,
+        unique_cap_exceeded,
+        ip_bucket_utiilization_spill_over,
+        blocked
     ))
 }
 
