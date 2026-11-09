@@ -48,11 +48,11 @@ async fn rate_limits_per_ip() {
     );
     assert_eq!(status(&app, make_request("2.2.2.2")).await, StatusCode::OK);
     assert_eq!(
-        metric(&app, "ip_tracker_ip_block_initiated_total").await,
+        metric(&app, "http_limiter_ip_block_events_initiated_total").await,
         "1"
     );
     assert_eq!(
-        metric(&app, "ip_tracker_requests_while_blocked_total").await,
+        metric(&app, "http_limiter_requests_while_blocked_total").await,
         "0"
     );
 }
@@ -74,11 +74,11 @@ async fn block_time_outlasts_rate_limit_window() {
     );
 
     assert_eq!(
-        metric(&app, "ip_tracker_ip_block_initiated_total").await,
+        metric(&app, "http_limiter_ip_block_events_initiated_total").await,
         "1"
     );
     assert_eq!(
-        metric(&app, "ip_tracker_requests_while_blocked_total").await,
+        metric(&app, "http_limiter_requests_while_blocked_total").await,
         "0"
     );
 
@@ -90,11 +90,11 @@ async fn block_time_outlasts_rate_limit_window() {
     );
 
     assert_eq!(
-        metric(&app, "ip_tracker_ip_block_initiated_total").await,
+        metric(&app, "http_limiter_ip_block_events_initiated_total").await,
         "1"
     );
     assert_eq!(
-        metric(&app, "ip_tracker_requests_while_blocked_total").await,
+        metric(&app, "http_limiter_requests_while_blocked_total").await,
         "1"
     );
 
@@ -102,11 +102,11 @@ async fn block_time_outlasts_rate_limit_window() {
     assert_eq!(status(&app, make_request("1.1.1.1")).await, StatusCode::OK);
 
     assert_eq!(
-        metric(&app, "ip_tracker_ip_block_initiated_total").await,
+        metric(&app, "http_limiter_ip_block_events_initiated_total").await,
         "1"
     );
     assert_eq!(
-        metric(&app, "ip_tracker_requests_while_blocked_total").await,
+        metric(&app, "http_limiter_requests_while_blocked_total").await,
         "1"
     );
 }
@@ -145,7 +145,7 @@ async fn caps_unique_ips() {
         StatusCode::TOO_MANY_REQUESTS
     );
     assert_eq!(
-        metric(&app, "ip_tracker_unique_ip_limit_exceeded_total").await,
+        metric(&app, "http_limiter_unique_ip_limit_exceeded_total").await,
         "1"
     );
 }

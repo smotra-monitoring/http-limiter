@@ -6,7 +6,7 @@ use crate::state::{AppState, SharedState};
 
 /// Drops IPs whose last request is older than the inactivity timeout.
 pub(crate) fn cleanup_inactive(state: &AppState, now: Instant) {
-    let timeout = state.config.idle_time;
+    let idle_timeout = state.config.idle_time;
     let Ok(mut records) = state.records_write() else {
         eprintln!("Skipping cleanup: ip_records lock poisoned");
         return;
@@ -17,7 +17,7 @@ pub(crate) fn cleanup_inactive(state: &AppState, now: Instant) {
             || record
                 .timestamps
                 .back()
-                .is_some_and(|&last_seen| now.duration_since(last_seen) <= timeout)
+                .is_some_and(|&last_seen| now.duration_since(last_seen) <= idle_timeout)
     });
 }
 
