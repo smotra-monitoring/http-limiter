@@ -8,10 +8,13 @@ use crate::state::{AppState, SharedState};
 pub(crate) fn cleanup_inactive(state: &AppState, now: Instant) {
     let timeout = state.config.idle_time;
     let mut records = state.ip_records.write().unwrap();
-    records.retain(|_, timestamps| {
-        timestamps
-            .back()
-            .is_some_and(|&last_seen| now.duration_since(last_seen) <= timeout)
+    records.retain(|_, record| {
+        // Evicting a blocked IP would silently lift its block.
+        record.blocked_until.is_some_and(|until| until > now)
+            || record
+                .timestamps
+                .back()
+                .is_some_and(|&last_seen| now.duration_since(last_seen) <= timeout)
     });
 }
 
@@ -31,7 +34,7 @@ pub fn spawn_cleanup_task(state: &SharedState) -> JoinHandle<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::Config;
+    use crate::{config::Config, state::IpRecord};
     use std::{collections::VecDeque, net::IpAddr, time::Duration};
 
     #[test]
@@ -46,14 +49,51 @@ mod tests {
         let empty: IpAddr = "10.0.0.3".parse().unwrap();
         {
             let mut records = state.ip_records.write().unwrap();
-            records.insert(stale, VecDeque::from([now - Duration::from_secs(20)]));
-            records.insert(block, VecDeque::from([now - Duration::from_secs(5)]));
-            records.insert(empty, VecDeque::new());
+            let with = |timestamps: VecDeque<Instant>| IpRecord {
+                timestamps,
+                blocked_until: None,
+            };
+            records.insert(stale, with(VecDeque::from([now - Duration::from_secs(20)])));
+            records.insert(block, with(VecDeque::from([now - Duration::from_secs(5)])));
+            records.insert(empty, IpRecord::default());
         }
 
         cleanup_inactive(&state, now);
 
         let records = state.ip_records.read().unwrap();
         assert_eq!(records.keys().copied().collect::<Vec<_>>(), vec![block]);
+    }
+
+    #[test]
+    fn keeps_blocked_ips_even_when_idle_expired() {
+        let state = AppState::new(Config {
+            idle_time: Duration::from_secs(10),
+            ..Config::default()
+        });
+        let now = Instant::now();
+        let blocked: IpAddr = "10.0.0.4".parse().unwrap();
+        let expired: IpAddr = "10.0.0.5".parse().unwrap();
+        {
+            let mut records = state.ip_records.write().unwrap();
+            records.insert(
+                blocked,
+                IpRecord {
+                    timestamps: VecDeque::from([now - Duration::from_secs(20)]),
+                    blocked_until: Some(now + Duration::from_secs(5)),
+                },
+            );
+            records.insert(
+                expired,
+                IpRecord {
+                    timestamps: VecDeque::from([now - Duration::from_secs(20)]),
+                    blocked_until: Some(now - Duration::from_secs(1)),
+                },
+            );
+        }
+
+        cleanup_inactive(&state, now);
+
+        let records = state.ip_records.read().unwrap();
+        assert_eq!(records.keys().copied().collect::<Vec<_>>(), vec![blocked]);
     }
 }
