@@ -10,7 +10,7 @@ pub enum Error {
     Io(std::io::Error),
     Config(config::ConfigError),
     LockPoisoned,
-    ServiceUnavailable { retry_after: std::time::Duration },
+    Http429 { retry_after: std::time::Duration },
     HttpStatus { status: StatusCode },
 }
 
@@ -22,11 +22,8 @@ impl fmt::Display for Error {
             Self::LockPoisoned => {
                 write!(f, "ip_records lock poisoned by a panic in another thread")
             }
-            Self::ServiceUnavailable { retry_after } => {
-                write!(
-                    f,
-                    "HTTP 503 Service Unavailable, retry after {retry_after:?}"
-                )
+            Self::Http429 { retry_after } => {
+                write!(f, "HTTP 429 Too Many Requests, retry after {retry_after:?}")
             }
             Self::HttpStatus { status } => write!(f, "HTTP status error: {status}"),
         }
@@ -39,7 +36,7 @@ impl std::error::Error for Error {
             Self::Io(e) => Some(e),
             Self::Config(e) => Some(e),
             Self::LockPoisoned => None,
-            Self::ServiceUnavailable { .. } => None,
+            Self::Http429 { .. } => None,
             Self::HttpStatus { .. } => None,
         }
     }

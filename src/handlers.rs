@@ -23,7 +23,7 @@ pub(crate) struct IpPayload {
 impl IntoResponse for Error {
     fn into_response(self) -> Response {
         match self {
-            Error::ServiceUnavailable { retry_after } => http_429(retry_after),
+            Error::Http429 { retry_after } => http_429(retry_after),
             Error::HttpStatus { status } => status.into_response(),
             _ => StatusCode::SERVICE_UNAVAILABLE.into_response(),
         }
@@ -58,7 +58,7 @@ pub(crate) async fn check_ip_handler(
             .unique_ip_limit_exceeded_total
             .fetch_add(1, Ordering::Relaxed);
         // Slots free up via the idle cleanup, so retry after one cleanup interval
-        return Err(Error::ServiceUnavailable {
+        return Err(Error::Http429 {
             retry_after: cfg.cleanup_interval,
         }); // this is application issue due to unique IP cap, return Err
     }
