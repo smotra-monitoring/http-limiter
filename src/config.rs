@@ -14,7 +14,7 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            bind_addr: SocketAddr::from(([0, 0, 0, 0], 8080)),
+            bind_addr: SocketAddr::from(([0, 0, 0, 0], 8082)),
             max_unique_ips: 200_000,
             max_timestamps: 50,
             requests_per_window: 10,
