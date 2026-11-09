@@ -7,7 +7,7 @@ use http_limiter::{AppState, Config, build_router};
 use tower::ServiceExt;
 
 fn track_request(ip: &str) -> Request<Body> {
-    Request::post("/track")
+    Request::post("/check")
         .header("content-type", "application/json")
         .body(Body::from(format!(r#"{{"ip":"{ip}"}}"#)))
         .unwrap()

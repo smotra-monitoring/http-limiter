@@ -85,7 +85,7 @@ jobs:
           <summary><b>📦 View Updated Packages</b> (Click to expand)</summary>
           
           \`\`\`text
-          ${{ env.UPDATE_REPORT }}
+          $UPDATE_REPORT
           \`\`\`
           
           </details>
@@ -107,5 +107,5 @@ jobs:
         run: |
           gh issue create \
             --title "Failed: Monthly dependency update" \
-            --body "The monthly dependency update failed unit tests. Updates: ${{ env.UPDATE_REPORT }}" \
+            --body "The monthly dependency update failed unit tests. Updates: $UPDATE_REPORT" \
             --label "dependencies,github-actions"
