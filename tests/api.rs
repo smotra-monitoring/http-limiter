@@ -4,6 +4,7 @@ use axum::{
     http::{Request, StatusCode},
 };
 use http_limiter::{AppState, Config, build_router};
+use std::time::Duration;
 use tower::ServiceExt;
 
 fn make_request(ip: &str) -> Request<Body> {
@@ -47,9 +48,86 @@ async fn rate_limits_per_ip() {
     );
     assert_eq!(status(&app, make_request("2.2.2.2")).await, StatusCode::OK);
     assert_eq!(
-        metric(&app, "ip_tracker_rate_limit_exceeded_total").await,
+        metric(&app, "ip_tracker_ip_block_initiated_total").await,
         "1"
     );
+    assert_eq!(
+        metric(&app, "ip_tracker_requests_while_blocked_total").await,
+        "0"
+    );
+}
+
+#[tokio::test]
+async fn block_time_outlasts_rate_limit_window() {
+    let state = AppState::new(Config {
+        requests_per_window: 1,
+        rate_limit_window: Duration::from_millis(20),
+        block_time: Duration::from_millis(300),
+        ..Config::default()
+    });
+    let app = build_router(state);
+
+    assert_eq!(status(&app, make_request("1.1.1.1")).await, StatusCode::OK);
+    assert_eq!(
+        status(&app, make_request("1.1.1.1")).await,
+        StatusCode::TOO_MANY_REQUESTS
+    );
+
+    assert_eq!(
+        metric(&app, "ip_tracker_ip_block_initiated_total").await,
+        "1"
+    );
+    assert_eq!(
+        metric(&app, "ip_tracker_requests_while_blocked_total").await,
+        "0"
+    );
+
+    // The window has elapsed but the block has not.
+    tokio::time::sleep(Duration::from_millis(60)).await;
+    assert_eq!(
+        status(&app, make_request("1.1.1.1")).await,
+        StatusCode::TOO_MANY_REQUESTS
+    );
+
+    assert_eq!(
+        metric(&app, "ip_tracker_ip_block_initiated_total").await,
+        "1"
+    );
+    assert_eq!(
+        metric(&app, "ip_tracker_requests_while_blocked_total").await,
+        "1"
+    );
+
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    assert_eq!(status(&app, make_request("1.1.1.1")).await, StatusCode::OK);
+
+    assert_eq!(
+        metric(&app, "ip_tracker_ip_block_initiated_total").await,
+        "1"
+    );
+    assert_eq!(
+        metric(&app, "ip_tracker_requests_while_blocked_total").await,
+        "1"
+    );
+}
+
+#[tokio::test]
+async fn zero_block_time_recovers_after_window() {
+    let state = AppState::new(Config {
+        requests_per_window: 1,
+        rate_limit_window: Duration::from_millis(20),
+        block_time: Duration::from_millis(40),
+        ..Config::default()
+    });
+    let app = build_router(state);
+
+    assert_eq!(status(&app, make_request("1.1.1.1")).await, StatusCode::OK);
+    assert_eq!(
+        status(&app, make_request("1.1.1.1")).await,
+        StatusCode::TOO_MANY_REQUESTS
+    );
+    tokio::time::sleep(Duration::from_millis(60)).await;
+    assert_eq!(status(&app, make_request("1.1.1.1")).await, StatusCode::OK);
 }
 
 #[tokio::test]

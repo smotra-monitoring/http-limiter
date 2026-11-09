@@ -6,6 +6,8 @@ pub struct Config {
     pub max_timestamps: usize,
     pub requests_per_window: usize,
     pub rate_limit_window: Duration,
+    /// How long an IP stays rejected after exceeding the limit; zero disables blocking.
+    pub block_time: Duration,
     pub max_unique_ips: usize,
     pub idle_time: Duration,
     pub cleanup_interval: Duration,
@@ -17,8 +19,9 @@ impl Default for Config {
             bind_addr: SocketAddr::from(([0, 0, 0, 0], 8082)),
             max_unique_ips: 200_000,
             max_timestamps: 50,
-            requests_per_window: 10,
             rate_limit_window: Duration::from_secs(60),
+            requests_per_window: 20,
+            block_time: Duration::from_secs(120),
             idle_time: Duration::from_secs(300),
             cleanup_interval: Duration::from_secs(60),
         }
@@ -37,6 +40,9 @@ impl Config {
             rate_limit_window: env_parse("HTTP_LIMITER_RATE_LIMIT_WINDOW_SECS")
                 .map(Duration::from_secs)
                 .unwrap_or(d.rate_limit_window),
+            block_time: env_parse("HTTP_LIMITER_BLOCK_TIME_SECS")
+                .map(Duration::from_secs)
+                .unwrap_or(d.block_time),
             max_unique_ips: env_parse("HTTP_LIMITER_MAX_UNIQUE_IPS").unwrap_or(d.max_unique_ips),
             idle_time: env_parse("HTTP_LIMITER_IDLE_TIME_SECS")
                 .map(Duration::from_secs)
