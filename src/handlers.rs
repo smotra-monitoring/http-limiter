@@ -3,7 +3,14 @@ use std::{net::IpAddr, sync::atomic::Ordering, time::Instant};
 use axum::{Json, extract::State, http::StatusCode};
 use serde::Deserialize;
 
-use crate::state::SharedState;
+use crate::state::{LockPoisoned, SharedState};
+
+impl From<LockPoisoned> for StatusCode {
+    fn from(err: LockPoisoned) -> Self {
+        eprintln!("{err}");
+        StatusCode::INTERNAL_SERVER_ERROR
+    }
+}
 
 #[derive(Deserialize)]
 pub(crate) struct IpPayload {
@@ -20,7 +27,7 @@ pub(crate) async fn check_ip_handler(
     let now = Instant::now();
     let window_start = now.checked_sub(cfg.rate_limit_window);
 
-    let mut records = state.ip_records.write().unwrap();
+    let mut records = state.records_write()?;
 
     // New IPs are rejected once the unique IP cap is reached
     if !records.contains_key(&payload.ip) && records.len() >= cfg.max_unique_ips {
@@ -67,14 +74,16 @@ pub(crate) async fn check_ip_handler(
     Ok(StatusCode::OK)
 }
 
-pub(crate) async fn metrics_handler(State(state): State<SharedState>) -> String {
-    let unique_ips_tracked = state.ip_records.read().unwrap().len();
+pub(crate) async fn metrics_handler(
+    State(state): State<SharedState>,
+) -> Result<String, StatusCode> {
+    let unique_ips_tracked = state.records_read()?.len();
     let total_reqs = state.total_requests.load(Ordering::Relaxed);
     let ip_block_initiated = state.ip_block_initiated.load(Ordering::Relaxed);
     let unique_cap_exceeded = state.unique_ip_limit_exceeded_total.load(Ordering::Relaxed);
     let blocked = state.requests_while_blocked.load(Ordering::Relaxed);
 
-    format!(
+    Ok(format!(
         "# HELP ip_tracker_unique_ips_total Total active unique IP addresses tracked in memory.\n\
          # TYPE ip_tracker_unique_ips_total gauge\n\
          ip_tracker_unique_ips_total {}\n\
@@ -95,7 +104,7 @@ pub(crate) async fn metrics_handler(State(state): State<SharedState>) -> String 
          # TYPE ip_tracker_requests_while_blocked_total counter\n\
          ip_tracker_requests_while_blocked_total {}\n",
         unique_ips_tracked, total_reqs, ip_block_initiated, unique_cap_exceeded, blocked
-    )
+    ))
 }
 
 pub(crate) async fn liveness_handler(State(state): State<SharedState>) -> StatusCode {
