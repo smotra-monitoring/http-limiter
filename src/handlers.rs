@@ -1,6 +1,15 @@
-use std::{net::IpAddr, sync::atomic::Ordering, time::Instant};
+use std::{
+    net::IpAddr,
+    sync::atomic::Ordering,
+    time::{Duration, Instant},
+};
 
-use axum::{Json, extract::State, http::StatusCode};
+use axum::{
+    Json,
+    extract::State,
+    http::{StatusCode, header::RETRY_AFTER},
+    response::{IntoResponse, Response},
+};
 use serde::Deserialize;
 
 use crate::state::{LockPoisoned, SharedState};
@@ -11,16 +20,31 @@ impl From<LockPoisoned> for StatusCode {
         StatusCode::INTERNAL_SERVER_ERROR
     }
 }
+impl From<LockPoisoned> for Response {
+    fn from(err: LockPoisoned) -> Self {
+        StatusCode::from(err).into_response()
+    }
+}
 
 #[derive(Deserialize)]
 pub(crate) struct IpPayload {
     pub(crate) ip: IpAddr,
 }
 
+/// 429 response with `Retry-After` in whole seconds, rounded up and at least 1.
+fn too_many_requests(retry_after: Duration) -> Response {
+    let secs = retry_after.as_secs() + u64::from(retry_after.subsec_nanos() > 0);
+    (
+        StatusCode::TOO_MANY_REQUESTS,
+        [(RETRY_AFTER, secs.max(1).to_string())],
+    )
+        .into_response()
+}
+
 pub(crate) async fn check_ip_handler(
     State(state): State<SharedState>,
     Json(payload): Json<IpPayload>,
-) -> Result<StatusCode, StatusCode> {
+) -> Result<Response, Response> {
     state.total_requests.fetch_add(1, Ordering::Relaxed);
 
     let cfg = &state.config;
@@ -35,7 +59,8 @@ pub(crate) async fn check_ip_handler(
         state
             .unique_ip_limit_exceeded_total
             .fetch_add(1, Ordering::Relaxed);
-        return Err(StatusCode::TOO_MANY_REQUESTS); // this is application issue due to unique IP cap, return Err
+        // Slots free up via the idle cleanup, so retry after one cleanup interval
+        return Err(too_many_requests(cfg.cleanup_interval)); // this is application issue due to unique IP cap, return Err
     }
 
     let record = records.entry(payload.ip).or_default();
@@ -43,7 +68,7 @@ pub(crate) async fn check_ip_handler(
     match record.blocked_until {
         Some(until) if until > now => {
             state.requests_while_blocked.fetch_add(1, Ordering::Relaxed);
-            return Ok(StatusCode::TOO_MANY_REQUESTS);
+            return Ok(too_many_requests(until - now));
         }
         Some(_) => record.blocked_until = None,
         None => {}
@@ -60,10 +85,17 @@ pub(crate) async fn check_ip_handler(
     if timestamps.len() >= cfg.requests_per_window {
         println!("Blocking IP: {}", payload.ip);
         state.ip_block_initiated.fetch_add(1, Ordering::Relaxed);
-        if !cfg.block_time.is_zero() {
+        let retry_after = if cfg.block_time.is_zero() {
+            // Without blocking, the oldest timestamp leaving the window frees a slot
+            timestamps
+                .front()
+                .map(|&t| (t + cfg.rate_limit_window).saturating_duration_since(now))
+                .unwrap_or_default()
+        } else {
             record.blocked_until = Some(now + cfg.block_time);
-        }
-        return Ok(StatusCode::TOO_MANY_REQUESTS); // this is expected behavior for rate-limited IPs, return Ok
+            cfg.block_time
+        };
+        return Ok(too_many_requests(retry_after)); // this is expected behavior for rate-limited IPs, return Ok
     }
 
     if timestamps.len() >= cfg.max_timestamps {
@@ -71,7 +103,7 @@ pub(crate) async fn check_ip_handler(
     }
     timestamps.push_back(now);
 
-    Ok(StatusCode::OK)
+    Ok(StatusCode::OK.into_response())
 }
 
 pub(crate) async fn metrics_handler(
