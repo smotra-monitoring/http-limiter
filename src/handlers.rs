@@ -12,27 +12,25 @@ use axum::{
 };
 use serde::Deserialize;
 
-use crate::state::{LockPoisoned, SharedState};
-
-impl From<LockPoisoned> for StatusCode {
-    fn from(err: LockPoisoned) -> Self {
-        eprintln!("{err}");
-        StatusCode::INTERNAL_SERVER_ERROR
-    }
-}
-impl From<LockPoisoned> for Response {
-    fn from(err: LockPoisoned) -> Self {
-        StatusCode::from(err).into_response()
-    }
-}
+use crate::error::Error;
+use crate::state::SharedState;
 
 #[derive(Deserialize)]
 pub(crate) struct IpPayload {
     pub(crate) ip: IpAddr,
 }
 
-/// 429 response with `Retry-After` in whole seconds, rounded up and at least 1.
-fn too_many_requests(retry_after: Duration) -> Response {
+impl IntoResponse for Error {
+    fn into_response(self) -> Response {
+        match self {
+            Error::ServiceUnavailable { retry_after } => http_429(retry_after),
+            Error::HttpStatus { status } => status.into_response(),
+            _ => StatusCode::SERVICE_UNAVAILABLE.into_response(),
+        }
+    }
+}
+
+fn http_429(retry_after: Duration) -> Response {
     let secs = retry_after.as_secs() + u64::from(retry_after.subsec_nanos() > 0);
     (
         StatusCode::TOO_MANY_REQUESTS,
@@ -44,7 +42,7 @@ fn too_many_requests(retry_after: Duration) -> Response {
 pub(crate) async fn check_ip_handler(
     State(state): State<SharedState>,
     Json(payload): Json<IpPayload>,
-) -> Result<Response, Response> {
+) -> Result<Response, Error> {
     state.total_requests.fetch_add(1, Ordering::Relaxed);
 
     let cfg = &state.config;
@@ -60,7 +58,9 @@ pub(crate) async fn check_ip_handler(
             .unique_ip_limit_exceeded_total
             .fetch_add(1, Ordering::Relaxed);
         // Slots free up via the idle cleanup, so retry after one cleanup interval
-        return Err(too_many_requests(cfg.cleanup_interval)); // this is application issue due to unique IP cap, return Err
+        return Err(Error::ServiceUnavailable {
+            retry_after: cfg.cleanup_interval,
+        }); // this is application issue due to unique IP cap, return Err
     }
 
     let record = records.entry(payload.ip).or_default();
@@ -68,7 +68,7 @@ pub(crate) async fn check_ip_handler(
     match record.blocked_until {
         Some(until) if until > now => {
             state.requests_while_blocked.fetch_add(1, Ordering::Relaxed);
-            return Ok(too_many_requests(until - now));
+            return Ok(http_429(until - now));
         }
         Some(_) => record.blocked_until = None,
         None => {}
@@ -87,7 +87,7 @@ pub(crate) async fn check_ip_handler(
         state.ip_block_initiated.fetch_add(1, Ordering::Relaxed);
         record.blocked_until = Some(now + cfg.block_time);
 
-        return Ok(too_many_requests(cfg.block_time)); // this is expected behavior for rate-limited IPs, return Ok
+        return Ok(http_429(cfg.block_time)); // this is expected behavior for rate-limited IPs, return Ok
     }
 
     // IMO this will never happen under normal circumstances
@@ -106,9 +106,7 @@ pub(crate) async fn check_ip_handler(
     Ok(StatusCode::OK.into_response())
 }
 
-pub(crate) async fn metrics_handler(
-    State(state): State<SharedState>,
-) -> Result<String, StatusCode> {
+pub(crate) async fn metrics_handler(State(state): State<SharedState>) -> Result<String, Error> {
     let unique_ips_tracked = state.records_read()?.len();
     let total_reqs = state.total_requests.load(Ordering::Relaxed);
     let ip_block_initiated = state.ip_block_initiated.load(Ordering::Relaxed);

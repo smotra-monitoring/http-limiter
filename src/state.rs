@@ -1,12 +1,12 @@
 use std::{
     collections::{BTreeMap, VecDeque},
-    fmt,
     net::IpAddr,
     sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard, atomic::AtomicU64},
     time::Instant,
 };
 
 use crate::config::Config;
+use crate::error::Error;
 
 #[derive(Default)]
 pub(crate) struct IpRecord {
@@ -26,16 +26,6 @@ pub struct AppState {
     pub(crate) ip_bucket_utiilization_spill_over: AtomicU64,
 }
 
-/// `ip_records` lock was poisoned by a panic in another thread.
-#[derive(Debug)]
-pub(crate) struct LockPoisoned;
-
-impl fmt::Display for LockPoisoned {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("ip_records lock poisoned by a panic in another thread")
-    }
-}
-
 pub type SharedState = Arc<AppState>;
 
 impl AppState {
@@ -51,11 +41,11 @@ impl AppState {
         })
     }
 
-    pub(crate) fn records_read(&self) -> Result<RwLockReadGuard<'_, RecordsMap>, LockPoisoned> {
-        self.ip_records.read().map_err(|_| LockPoisoned)
+    pub(crate) fn records_read(&self) -> Result<RwLockReadGuard<'_, RecordsMap>, Error> {
+        self.ip_records.read().map_err(|_| Error::LockPoisoned)
     }
 
-    pub(crate) fn records_write(&self) -> Result<RwLockWriteGuard<'_, RecordsMap>, LockPoisoned> {
-        self.ip_records.write().map_err(|_| LockPoisoned)
+    pub(crate) fn records_write(&self) -> Result<RwLockWriteGuard<'_, RecordsMap>, Error> {
+        self.ip_records.write().map_err(|_| Error::LockPoisoned)
     }
 }
