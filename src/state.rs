@@ -1,7 +1,8 @@
 use std::{
     collections::{BTreeMap, VecDeque},
+    fmt,
     net::IpAddr,
-    sync::{Arc, RwLock, atomic::AtomicU64},
+    sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard, atomic::AtomicU64},
     time::Instant,
 };
 
@@ -13,13 +14,25 @@ pub(crate) struct IpRecord {
     pub(crate) blocked_until: Option<Instant>,
 }
 
+pub(crate) type RecordsMap = BTreeMap<IpAddr, IpRecord>;
+
 pub struct AppState {
     pub(crate) config: Config,
-    pub(crate) ip_records: RwLock<BTreeMap<IpAddr, IpRecord>>,
+    pub(crate) ip_records: RwLock<RecordsMap>,
     pub(crate) total_requests: AtomicU64,
     pub(crate) ip_block_initiated: AtomicU64,
     pub(crate) requests_while_blocked: AtomicU64,
     pub(crate) unique_ip_limit_exceeded_total: AtomicU64,
+}
+
+/// `ip_records` lock was poisoned by a panic in another thread.
+#[derive(Debug)]
+pub(crate) struct LockPoisoned;
+
+impl fmt::Display for LockPoisoned {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("ip_records lock poisoned by a panic in another thread")
+    }
 }
 
 pub type SharedState = Arc<AppState>;
@@ -34,5 +47,13 @@ impl AppState {
             requests_while_blocked: AtomicU64::new(0),
             unique_ip_limit_exceeded_total: AtomicU64::new(0),
         })
+    }
+
+    pub(crate) fn records_read(&self) -> Result<RwLockReadGuard<'_, RecordsMap>, LockPoisoned> {
+        self.ip_records.read().map_err(|_| LockPoisoned)
+    }
+
+    pub(crate) fn records_write(&self) -> Result<RwLockWriteGuard<'_, RecordsMap>, LockPoisoned> {
+        self.ip_records.write().map_err(|_| LockPoisoned)
     }
 }

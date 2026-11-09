@@ -20,5 +20,4 @@
 - Add graceful shutdown (`with_graceful_shutdown` on ctrl-c/SIGTERM) and stop the cleanup task there.
 - Replace `println!` with `tracing`.
 - Handle `RwLock` poisoning instead of `unwrap()`.
-- Consider rate limiting by the connecting peer or `X-Forwarded-For` rather than a client-supplied IP in the payload, which can be spoofed.
 - Use a metrics crate (e.g. `prometheus`) instead of hand-formatted text.

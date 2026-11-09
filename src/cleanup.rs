@@ -7,7 +7,10 @@ use crate::state::{AppState, SharedState};
 /// Drops IPs whose last request is older than the inactivity timeout.
 pub(crate) fn cleanup_inactive(state: &AppState, now: Instant) {
     let timeout = state.config.idle_time;
-    let mut records = state.ip_records.write().unwrap();
+    let Ok(mut records) = state.records_write() else {
+        eprintln!("Skipping cleanup: ip_records lock poisoned");
+        return;
+    };
     records.retain(|_, record| {
         // Evicting a blocked IP would silently lift its block.
         record.blocked_until.is_some_and(|until| until > now)
@@ -48,7 +51,7 @@ mod tests {
         let block: IpAddr = "10.0.0.2".parse().unwrap();
         let empty: IpAddr = "10.0.0.3".parse().unwrap();
         {
-            let mut records = state.ip_records.write().unwrap();
+            let mut records = state.records_write().unwrap();
             let with = |timestamps: VecDeque<Instant>| IpRecord {
                 timestamps,
                 blocked_until: None,
@@ -60,7 +63,7 @@ mod tests {
 
         cleanup_inactive(&state, now);
 
-        let records = state.ip_records.read().unwrap();
+        let records = state.records_read().unwrap();
         assert_eq!(records.keys().copied().collect::<Vec<_>>(), vec![block]);
     }
 
@@ -74,7 +77,7 @@ mod tests {
         let blocked: IpAddr = "10.0.0.4".parse().unwrap();
         let expired: IpAddr = "10.0.0.5".parse().unwrap();
         {
-            let mut records = state.ip_records.write().unwrap();
+            let mut records = state.records_write().unwrap();
             records.insert(
                 blocked,
                 IpRecord {
@@ -93,7 +96,7 @@ mod tests {
 
         cleanup_inactive(&state, now);
 
-        let records = state.ip_records.read().unwrap();
+        let records = state.records_read().unwrap();
         assert_eq!(records.keys().copied().collect::<Vec<_>>(), vec![blocked]);
     }
 }
