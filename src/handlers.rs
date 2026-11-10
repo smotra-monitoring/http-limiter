@@ -13,7 +13,7 @@ use axum::{
 use serde::Deserialize;
 
 use crate::error::Error;
-use crate::state::SharedState;
+use crate::state::{AppState, IpRecord, RecordsMap, SharedState};
 
 #[derive(Deserialize)]
 pub(crate) struct IpPayload {
@@ -45,62 +45,89 @@ pub(crate) async fn check_ip_handler(
 ) -> Result<Response, Error> {
     state.total_requests.fetch_add(1, Ordering::Relaxed);
 
+    let ip = payload.ip;
     let cfg = &state.config;
     let now = Instant::now();
-    let window_start = now.checked_sub(cfg.rate_limit_window);
 
     let mut records = state.records_write()?;
 
-    // New IPs are rejected once the unique IP cap is reached
-    if !records.contains_key(&payload.ip) && records.len() >= cfg.max_unique_ips {
-        tracing::warn!(ip = %payload.ip, "Unique IP limit exceeded");
-        state
-            .unique_ip_limit_exceeded_total
-            .fetch_add(1, Ordering::Relaxed);
-        // Slots free up via the idle cleanup, so retry after one cleanup interval
-        return Err(Error::Http429 {
-            retry_after: cfg.cleanup_interval,
-        }); // this is the application issue due to unique IP cap, return Err
+    if is_unique_ip_cap_reached(&state, &records, ip) {
+        return Err(unique_ip_cap_exceeded(&state, ip));
     }
 
-    let record = records.entry(payload.ip).or_default();
+    let record = records.entry(ip).or_default();
 
+    if let Some(remaining) = still_blocked(record, now) {
+        state.requests_while_blocked.fetch_add(1, Ordering::Relaxed);
+        return Ok(http_429(remaining));
+    }
+
+    evict_expired_timestamps(record, now, cfg.rate_limit_window);
+
+    if record.timestamps.len() >= cfg.requests_per_window {
+        block_ip(&state, record, ip, now);
+        // Expected behavior for rate-limited IPs, so Ok rather than Err
+        return Ok(http_429(cfg.block_time));
+    }
+
+    record_request(&state, record, ip, now);
+
+    Ok(StatusCode::OK.into_response())
+}
+
+/// New IPs are rejected once the unique IP cap is reached.
+fn is_unique_ip_cap_reached(state: &AppState, records: &RecordsMap, ip: IpAddr) -> bool {
+    !records.contains_key(&ip) && records.len() >= state.config.max_unique_ips
+}
+
+fn unique_ip_cap_exceeded(state: &AppState, ip: IpAddr) -> Error {
+    tracing::warn!(%ip, "Unique IP limit exceeded");
+    state
+        .unique_ip_limit_exceeded_total
+        .fetch_add(1, Ordering::Relaxed);
+    // Slots free up via the idle cleanup, so retry after one cleanup interval
+    Error::Http429 {
+        retry_after: state.config.cleanup_interval,
+    }
+}
+
+/// Returns the remaining block time, clearing an expired block.
+fn still_blocked(record: &mut IpRecord, now: Instant) -> Option<Duration> {
     match record.blocked_until {
-        Some(until) if until > now => {
-            state.requests_while_blocked.fetch_add(1, Ordering::Relaxed);
-            return Ok(http_429(until - now));
+        Some(until) if until > now => Some(until - now),
+        Some(_) => {
+            record.blocked_until = None;
+            None
         }
-        Some(_) => record.blocked_until = None,
-        None => {}
+        None => None,
     }
+}
 
-    let timestamps = &mut record.timestamps;
-
-    if let Some(window_start) = window_start {
-        while timestamps.front().is_some_and(|&t| t < window_start) {
-            timestamps.pop_front();
-        }
+fn evict_expired_timestamps(record: &mut IpRecord, now: Instant, window: Duration) {
+    let Some(window_start) = now.checked_sub(window) else {
+        return;
+    };
+    while record.timestamps.front().is_some_and(|&t| t < window_start) {
+        record.timestamps.pop_front();
     }
+}
 
-    if timestamps.len() >= cfg.requests_per_window {
-        tracing::info!(ip = %payload.ip, "Blocking IP");
-        state.ip_block_events.fetch_add(1, Ordering::Relaxed);
-        record.blocked_until = Some(now + cfg.block_time);
+fn block_ip(state: &AppState, record: &mut IpRecord, ip: IpAddr, now: Instant) {
+    tracing::info!(%ip, "blocking ");
+    state.ip_block_events.fetch_add(1, Ordering::Relaxed);
+    record.blocked_until = Some(now + state.config.block_time);
+}
 
-        return Ok(http_429(cfg.block_time)); // this is expected behavior for rate-limited IPs, return Ok
-    }
-
-    // IMO this will never happen under normal circumstances
-    if timestamps.len() >= cfg.timestamp_bucket_size {
-        tracing::warn!(ip = %payload.ip, "(Require investigation) Timestamps exceeded max");
+fn record_request(state: &AppState, record: &mut IpRecord, ip: IpAddr, now: Instant) {
+    if record.timestamps.len() >= state.config.timestamp_bucket_size {
+        // IMO this will never happen under normal circumstances
+        tracing::warn!(%ip, "(Require investigation) Timestamps exceeded max");
         state
             .ip_bucket_utiilization_spill_over
             .fetch_add(1, Ordering::Relaxed);
-        timestamps.pop_front();
+        record.timestamps.pop_front();
     }
-    timestamps.push_back(now);
-
-    Ok(StatusCode::OK.into_response())
+    record.timestamps.push_back(now);
 }
 
 pub(crate) async fn metrics_handler(State(state): State<SharedState>) -> Result<String, Error> {
@@ -134,7 +161,7 @@ pub(crate) async fn metrics_handler(State(state): State<SharedState>) -> Result<
          # TYPE http_limiter_unique_ip_limit_exceeded_total counter\n\
          http_limiter_unique_ip_limit_exceeded_total {}\n\
          \n\
-         # HELP http_limiter_ip_bucket_utiilization_spill_over Number of times the IP bucket utilization spilled over (if above 0, needed to be increased).\n\
+         # HELP http_limiter_ip_bucket_utiilization_spill_over Number of times the IP bucket utilization spilled over (if above 0, needed to be investigated).\n\
          # TYPE http_limiter_ip_bucket_utiilization_spill_over counter\n\
          http_limiter_ip_bucket_utiilization_spill_over {}\n\
          ",
