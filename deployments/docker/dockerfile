@@ -1,0 +1,20 @@
+# --- Stage 1: Build the binary ---
+FROM rust:latest AS builder
+
+WORKDIR /usr/src/app
+
+# Copy the source code and configuration files
+COPY . .
+
+# Build the application in release mode
+RUN cargo build --release
+
+# --- Stage 2: Create the runtime image ---
+FROM debian:bookworm-slim
+
+WORKDIR /usr/local/bin
+
+COPY --from=builder /usr/src/app/target/release/http-limiter .
+
+# Set the startup command
+CMD ["./http-limiter"]
