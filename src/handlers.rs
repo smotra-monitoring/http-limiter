@@ -53,14 +53,14 @@ pub(crate) async fn check_ip_handler(
 
     // New IPs are rejected once the unique IP cap is reached
     if !records.contains_key(&payload.ip) && records.len() >= cfg.max_unique_ips {
-        println!("Unique IP limit exceeded for IP: {}", payload.ip);
+        tracing::warn!(ip = %payload.ip, "Unique IP limit exceeded");
         state
             .unique_ip_limit_exceeded_total
             .fetch_add(1, Ordering::Relaxed);
         // Slots free up via the idle cleanup, so retry after one cleanup interval
         return Err(Error::Http429 {
             retry_after: cfg.cleanup_interval,
-        }); // this is application issue due to unique IP cap, return Err
+        }); // this is the application issue due to unique IP cap, return Err
     }
 
     let record = records.entry(payload.ip).or_default();
@@ -83,7 +83,7 @@ pub(crate) async fn check_ip_handler(
     }
 
     if timestamps.len() >= cfg.requests_per_window {
-        println!("Blocking IP: {}", payload.ip);
+        tracing::info!(ip = %payload.ip, "Blocking IP");
         state.ip_block_events.fetch_add(1, Ordering::Relaxed);
         record.blocked_until = Some(now + cfg.block_time);
 
@@ -92,10 +92,7 @@ pub(crate) async fn check_ip_handler(
 
     // IMO this will never happen under normal circumstances
     if timestamps.len() >= cfg.timestamp_bucket_size {
-        println!(
-            "(Require investigation) Timestamps exceeded max for IP: {}",
-            payload.ip
-        );
+        tracing::warn!(ip = %payload.ip, "(Require investigation) Timestamps exceeded max");
         state
             .ip_bucket_utiilization_spill_over
             .fetch_add(1, Ordering::Relaxed);

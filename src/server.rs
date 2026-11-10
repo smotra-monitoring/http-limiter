@@ -2,11 +2,19 @@ use crate::{Result, cleanup, config::Config, router::build_router, state::AppSta
 
 /// Binds, starts the cleanup task and serves until Ctrl-C/SIGTERM, then drains in-flight requests.
 pub async fn run(config: Config) -> Result<()> {
+    // Ignore the error: a global subscriber may already be installed.
+    let _ = tracing_subscriber::fmt()
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
+        )
+        .try_init();
+
     let listener = tokio::net::TcpListener::bind(config.bind_addr).await?;
-    println!(
-        "IP Tracker server v{} running on http://{}",
-        env!("CARGO_PKG_VERSION"),
-        listener.local_addr()?
+    tracing::info!(
+        version = env!("CARGO_PKG_VERSION"),
+        addr = %listener.local_addr()?,
+        "server listening..."
     );
 
     let state = AppState::new(config);
@@ -14,10 +22,10 @@ pub async fn run(config: Config) -> Result<()> {
     let result = axum::serve(listener, build_router(state))
         .with_graceful_shutdown(shutdown_signal())
         .await;
-    println!("Server stopped");
-    println!("Stopping cleanup task...");
+    tracing::info!("Server stopped");
+    tracing::info!("Stopping cleanup task...");
     cleanup.abort();
-    println!("Cleanup task stopped");
+    tracing::info!("Cleanup task stopped");
     Ok(result?)
 }
 
@@ -42,8 +50,8 @@ async fn shutdown_signal() {
     let terminate = std::future::pending::<()>();
 
     tokio::select! {
-        _ = ctrl_c => { println!("Ctrl-C received"); },
-        _ = terminate => { println!("SIGTERM received"); },
+        _ = ctrl_c => { tracing::info!("Ctrl-C received"); },
+        _ = terminate => { tracing::info!("SIGTERM received"); },
     }
-    println!("Shutdown signal received, draining connections...");
+    tracing::info!("Shutdown signal received, draining connections...");
 }

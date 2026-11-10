@@ -14,5 +14,5 @@ Everything else, including entries with no timestamps, is removed.
 ## Notes
 
 - The task starts with the server and is stopped when the server stops.
-- If the internal lock is poisoned the pass is skipped and an error is logged to stderr.
+- If the internal lock is poisoned the pass is skipped and an error is logged via `tracing`.
 - The cleanup holds the write lock only for the duration of one pass.

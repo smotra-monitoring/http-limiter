@@ -30,6 +30,5 @@ Always update documentation in the same change whenever a feature is implemented
 
 ## Improvement suggestions
 - Replace `RwLock<BTreeMap>` with a sharded map (e.g. `dashmap`) to reduce write-lock contention on `/check`.
-- Replace `println!` with `tracing`.
 - Handle `RwLock` poisoning instead of `unwrap()`.
 - Use a metrics crate (e.g. `prometheus`) instead of hand-formatted text.

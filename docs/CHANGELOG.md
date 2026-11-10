@@ -4,6 +4,10 @@ All notable changes are documented here. Format based on [Keep a Changelog](http
 
 ## [Unreleased]
 
+### Changed
+
+- Logging uses `tracing` instead of `println!`/`eprintln!`; verbosity is controlled by `RUST_LOG` (default `info`). Log line format changed to structured fields.
+
 ### Added
 
 - Graceful shutdown on `SIGINT` / `SIGTERM`: in-flight requests are drained before exit.

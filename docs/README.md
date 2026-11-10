@@ -62,6 +62,7 @@ All settings are optional environment variables. Unset or unparsable values fall
 | `HTTP_LIMITER_MAX_UNIQUE_IPS` | `200000` | Maximum number of IPs tracked at once |
 | `HTTP_LIMITER_IDLE_TIME_SECS` | `300` | Inactivity after which an IP is forgotten |
 | `HTTP_LIMITER_CLEANUP_INTERVAL_SECS` | `60` | How often the cleanup task runs |
+| `RUST_LOG` | `info` | Log filter (standard `tracing` env filter syntax) |
 
 Example:
 
