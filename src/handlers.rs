@@ -161,7 +161,7 @@ pub(crate) async fn metrics_handler(State(state): State<SharedState>) -> Result<
          # TYPE http_limiter_unique_ip_limit_exceeded_total counter\n\
          http_limiter_unique_ip_limit_exceeded_total {}\n\
          \n\
-         # HELP http_limiter_ip_bucket_utiilization_spill_over Number of times the IP bucket utilization spilled over (if above 0, needed to be increased).\n\
+         # HELP http_limiter_ip_bucket_utiilization_spill_over Number of times the IP bucket utilization spilled over (if above 0, needed to be investigated).\n\
          # TYPE http_limiter_ip_bucket_utiilization_spill_over counter\n\
          http_limiter_ip_bucket_utiilization_spill_over {}\n\
          ",
