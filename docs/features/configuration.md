@@ -12,6 +12,8 @@ Settings are read once at startup from environment variables. Unset or unparsabl
 | `HTTP_LIMITER_IDLE_TIME_SECS` | seconds | `300` |
 | `HTTP_LIMITER_CLEANUP_INTERVAL_SECS` | seconds | `60` |
 
+Log verbosity is controlled by the standard `RUST_LOG` filter (e.g. `RUST_LOG=debug`, `RUST_LOG=http_limiter=warn`); default is `info`.
+
 The per-IP timestamp bucket size is derived as `requests_per_window + 10` and is not configurable.
 
 ## Validation

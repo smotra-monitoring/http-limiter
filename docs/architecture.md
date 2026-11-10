@@ -44,8 +44,12 @@ flowchart TD
 - A poisoned lock yields `503` from handlers; cleanup skips its pass.
 - Counters are lock-free atomics.
 
+## Logging
+
+- Logs go through `tracing`; `server::run` installs a `tracing_subscriber` fmt subscriber (stdout) filtered by `RUST_LOG`, default `info`.
+- Config validation errors in `main` happen before the subscriber exists and are printed to stderr.
+
 ## Known improvement ideas
 
 - Sharded map (e.g. `dashmap`) to reduce write-lock contention
-- `tracing` instead of `println!`
 - A metrics crate instead of hand-formatted text

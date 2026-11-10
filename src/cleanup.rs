@@ -8,7 +8,7 @@ use crate::state::{AppState, SharedState};
 pub(crate) fn cleanup_inactive(state: &AppState, now: Instant) {
     let idle_timeout = state.config.idle_time;
     let Ok(mut records) = state.records_write() else {
-        eprintln!("Skipping cleanup: ip_records lock poisoned");
+        tracing::error!("Cleanup task failed: ip_records lock poisoned");
         return;
     };
     records.retain(|_, record| {
