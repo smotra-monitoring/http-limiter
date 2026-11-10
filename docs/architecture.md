@@ -11,7 +11,7 @@
 | `src/router.rs` | `build_router`: route table |
 | `src/handlers.rs` | `/check`, `/metrics` and health handlers |
 | `src/cleanup.rs` | Background idle-IP eviction |
-| `src/server.rs` | Binds the listener, starts cleanup, serves |
+| `src/server.rs` | Binds the listener, starts cleanup, serves until SIGINT/SIGTERM, then drains |
 | `src/error.rs` | `Error` type and HTTP mapping |
 | `tests/api.rs` | Integration tests using `build_router` and `tower::ServiceExt::oneshot` |
 
@@ -47,6 +47,5 @@ flowchart TD
 ## Known improvement ideas
 
 - Sharded map (e.g. `dashmap`) to reduce write-lock contention
-- Graceful shutdown on SIGTERM / Ctrl-C
 - `tracing` instead of `println!`
 - A metrics crate instead of hand-formatted text
