@@ -6,6 +6,7 @@ All notable changes are documented here. Format based on [Keep a Changelog](http
 
 ### Added
 
+- Graceful shutdown on `SIGINT` / `SIGTERM`: in-flight requests are drained before exit.
 - Documentation: README, feature pages, architecture and development guides.
 
 ## [0.0.0]
