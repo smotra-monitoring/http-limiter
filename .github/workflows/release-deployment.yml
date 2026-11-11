@@ -6,6 +6,10 @@ on:
 
 permissions:
   contents: read
+  packages: write
+  id-token: write
+  deployments: write
+  attestations: write
 
 # Passed via env (not inline expressions) to avoid script injection from tag names.
 env:
