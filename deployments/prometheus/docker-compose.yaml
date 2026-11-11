@@ -1,0 +1,51 @@
+services:
+  custom_app:
+    image: app
+    container_name: app
+    environment:
+      - HTTP_LIMITER_REQUESTS_PER_WINDOW=3
+    restart: always
+    ports:
+      - 8082:8082
+    networks:
+      - monitoring
+
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    depends_on:
+      - custom_app
+    restart: always
+    user: "0"
+    volumes:
+      - ./data/prometheus/etc/prometheus/:/etc/prometheus/
+      - ./data/prometheus/prometheus/:/prometheus/
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    ports:
+      - 9090:9090
+    networks:
+      - monitoring
+
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    depends_on:
+      - prometheus
+    restart: always
+    user: "0"
+    ports:
+      - 3000:3000
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_PANELS_DISABLE_SANITIZE_HTML=true
+      - GF_SECURITY_ALLOW_EMBEDDING=true
+    networks:
+      - monitoring
+    volumes:
+      - ./data/grafana/var/lib/grafana/:/var/lib/grafana/
+
+networks:
+  monitoring:
+    driver: bridge

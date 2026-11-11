@@ -4,7 +4,7 @@ import time
 import httpx
 
 URL = "http://localhost:8082/check"
-TOTAL_REQUESTS = 10_000
+TOTAL_REQUESTS = 200_000
 CONCURRENCY = 5
 
 async def send_request(client, semaphore):
