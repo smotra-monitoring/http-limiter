@@ -140,10 +140,7 @@ jobs:
           
       - name: Update version in Cargo.toml to match release tag
         shell: bash
-        run: |
-          # Only touch the [package] section; VERSION is validated in the prepare job.
-          sed -i.bak '/^\[package\]/,/^\[/ s/^version = ".*"/version = "'"$VERSION"'"/' Cargo.toml
-          grep -qx "version = \"$VERSION\"" Cargo.toml || { echo "ERROR: failed to set version in Cargo.toml"; exit 1; }
+        run: ./scripts/set-version.sh "$VERSION"
 
       - name: Debug info
         run: |
@@ -230,6 +227,8 @@ jobs:
   build-container-image:
     needs: [prepare, create-release]
     runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
     permissions:
       packages: write
       id-token: write
@@ -241,6 +240,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
+
+      - name: Update version in Cargo.toml to match release tag
+        run: ./scripts/set-version.sh "$VERSION"
 
       - name: Login to GHCR                                                                                                                                                                                                                   
         uses: docker/login-action@v4                                                                                                                                                                                                          
