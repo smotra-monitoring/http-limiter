@@ -237,7 +237,7 @@ jobs:
       attestations: write
     environment:
       name: container
-      url:  https://github.com/${{ github.repository }}/pkgs/container/${{ github.repository }}
+      url:  https://github.com/${{ github.repository }}/pkgs/container/${{ github.event.repository.name }}
 
     steps:
       - uses: actions/checkout@v7
