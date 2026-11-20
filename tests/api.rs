@@ -132,11 +132,13 @@ async fn lists_blocked_ips() {
     assert_eq!(status(&app, make_request("1.1.1.1")).await, StatusCode::OK);
     assert_eq!(status(&app, make_request("2.2.2.2")).await, StatusCode::OK);
     assert_eq!(list().await, "[]");
+    assert_eq!(metric(&app, "http_limiter_blocked_ip_current").await, "0");
 
     assert_eq!(
         status(&app, make_request("1.1.1.1")).await,
         StatusCode::TOO_MANY_REQUESTS
     );
+    assert_eq!(metric(&app, "http_limiter_blocked_ip_current").await, "1");
     let body = list().await;
     assert!(body.contains(r#""ip":"1.1.1.1""#), "{body}");
     assert!(!body.contains("2.2.2.2"), "{body}");

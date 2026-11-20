@@ -5,6 +5,7 @@ Endpoint: `GET /metrics` returns metrics in the Prometheus text exposition forma
 | Metric | Type | Description |
 |---|---|---|
 | `http_limiter_tracked_ip_current` | gauge | IPs currently tracked in memory |
+| `http_limiter_blocked_ip_current` | gauge | IPs currently blocked; computed per scrape by scanning all tracked IPs under the read lock |
 | `http_limiter_http_requests_total` | counter | Requests handled by `/check` |
 | `http_limiter_ip_block_events_total` | counter | Blocks started because of rate limiting |
 | `http_limiter_unique_ip_limit_exceeded_total` | counter | Requests rejected by the [unique IP cap](unique-ip-cap.md) |

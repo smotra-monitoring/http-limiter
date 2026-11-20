@@ -27,4 +27,5 @@ When an IP exceeds the [rate limit](rate-limiting.md), it is blocked for `HTTP_L
 ## Metrics
 
 - `http_limiter_ip_block_events_total`: blocks started
+- `http_limiter_blocked_ip_current`: IPs blocked right now
 - `http_limiter_requests_while_blocked_total`: requests rejected during a block

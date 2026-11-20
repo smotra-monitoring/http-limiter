@@ -15,6 +15,7 @@ All notable changes are documented here. Format based on [Keep a Changelog](http
 
 ### Added
 
+- `http_limiter_blocked_ip_current` gauge: number of currently blocked IPs.
 - `GET /blocked` returns the currently blocked IPs with their remaining block time.
 - Graceful shutdown on `SIGINT` / `SIGTERM`: in-flight requests are drained before exit.
 - Documentation: README, feature pages, architecture and development guides.

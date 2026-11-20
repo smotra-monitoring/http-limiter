@@ -163,7 +163,15 @@ fn record_request(state: &AppState, record: &mut IpRecord, ip: IpAddr, now: Inst
 }
 
 pub(crate) async fn metrics_handler(State(state): State<SharedState>) -> Result<String, Error> {
-    let unique_ips_tracked = state.records_read()?.len();
+    let (unique_ips_tracked, blocked_ips) = {
+        let now = Instant::now();
+        let records = state.records_read()?;
+        let blocked = records
+            .values()
+            .filter(|r| r.blocked_until.is_some_and(|until| until > now))
+            .count();
+        (records.len(), blocked)
+    };
     let total_reqs = state.total_requests.load(Ordering::Relaxed);
     let ip_block_events = state.ip_block_events.load(Ordering::Relaxed);
     let unique_cap_exceeded = state.unique_ip_limit_exceeded_total.load(Ordering::Relaxed);
@@ -176,6 +184,10 @@ pub(crate) async fn metrics_handler(State(state): State<SharedState>) -> Result<
         "# HELP http_limiter_tracked_ip_current Total active unique IP addresses tracked in memory.\n\
          # TYPE http_limiter_tracked_ip_current gauge\n\
          http_limiter_tracked_ip_current {}\n\
+         \n\
+         # HELP http_limiter_blocked_ip_current IP addresses currently blocked.\n\
+         # TYPE http_limiter_blocked_ip_current gauge\n\
+         http_limiter_blocked_ip_current {}\n\
          \n\
          # HELP http_limiter_http_requests_total Total number of HTTP requests processed.\n\
          # TYPE http_limiter_http_requests_total counter\n\
@@ -198,6 +210,7 @@ pub(crate) async fn metrics_handler(State(state): State<SharedState>) -> Result<
          http_limiter_ip_bucket_utiilization_spill_over {}\n\
          ",
         unique_ips_tracked,
+        blocked_ips,
         total_reqs,
         ip_block_events,
         requests_while_blocked,
