@@ -9,7 +9,7 @@
 | `src/config.rs` | `Config`, environment parsing, validation |
 | `src/state.rs` | `AppState` shared between handlers and the cleanup task |
 | `src/router.rs` | `build_router`: route table |
-| `src/handlers.rs` | `/check`, `/metrics` and health handlers |
+| `src/handlers.rs` | `/check`, `/blocked`, `/metrics` and health handlers |
 | `src/cleanup.rs` | Background idle-IP eviction |
 | `src/server.rs` | Binds the listener, starts cleanup, serves until SIGINT/SIGTERM, then drains |
 | `src/error.rs` | `Error` type and HTTP mapping |
@@ -39,7 +39,7 @@ flowchart TD
 
 ## Concurrency
 
-- One `RwLock` guards all IP records. `/check` takes the write lock; `/metrics` and liveness take read access.
+- One `RwLock` guards all IP records. `/check` takes the write lock; `/blocked`, `/metrics` and liveness take read access.
 - The lock is held briefly and never across an `.await`.
 - A poisoned lock yields `503` from handlers; cleanup skips its pass.
 - Counters are lock-free atomics.

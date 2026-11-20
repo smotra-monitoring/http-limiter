@@ -8,6 +8,7 @@ use crate::{handlers, state::SharedState};
 pub fn build_router(state: SharedState) -> Router {
     Router::new()
         .route("/check", post(handlers::check_ip_handler))
+        .route("/blocked", get(handlers::blocked_ips_handler))
         .route("/metrics", get(handlers::metrics_handler))
         .route("/healthz/live", get(handlers::liveness_handler))
         .route("/healthz/ready", get(handlers::readiness_handler))

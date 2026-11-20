@@ -10,6 +10,16 @@ When an IP exceeds the [rate limit](rate-limiting.md), it is blocked for `HTTP_L
 - When the block expires, the IP is unblocked on its next request and continues to use its existing window.
 - Blocked IPs are never evicted by [idle cleanup](idle-cleanup.md) until the block expires.
 
+## Listing blocked IPs
+
+`GET /blocked` returns a JSON array of currently blocked IPs; expired blocks are omitted.
+
+```json
+[{"ip":"203.0.113.7","retry_after_secs":93}]
+```
+
+`retry_after_secs` is the remaining block time rounded up to a whole second. Returns `503` if the lock is poisoned.
+
 ## Constraint
 
 `block_time` must be at least `rate_limit_window`; see [Configuration](configuration.md).

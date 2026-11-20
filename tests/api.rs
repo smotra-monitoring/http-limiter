@@ -112,6 +112,37 @@ async fn block_time_outlasts_rate_limit_window() {
 }
 
 #[tokio::test]
+async fn lists_blocked_ips() {
+    let state = AppState::new(Config {
+        requests_per_window: 1,
+        ..Config::default()
+    });
+    let app = build_router(state);
+
+    let list = || async {
+        let req = Request::get("/blocked").body(Body::empty()).unwrap();
+        let res = app.clone().oneshot(req).await.unwrap();
+        assert_eq!(res.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(res.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        String::from_utf8(body.to_vec()).unwrap()
+    };
+
+    assert_eq!(status(&app, make_request("1.1.1.1")).await, StatusCode::OK);
+    assert_eq!(status(&app, make_request("2.2.2.2")).await, StatusCode::OK);
+    assert_eq!(list().await, "[]");
+
+    assert_eq!(
+        status(&app, make_request("1.1.1.1")).await,
+        StatusCode::TOO_MANY_REQUESTS
+    );
+    let body = list().await;
+    assert!(body.contains(r#""ip":"1.1.1.1""#), "{body}");
+    assert!(!body.contains("2.2.2.2"), "{body}");
+}
+
+#[tokio::test]
 async fn zero_block_time_recovers_after_window() {
     let state = AppState::new(Config {
         requests_per_window: 1,

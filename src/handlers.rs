@@ -10,7 +10,7 @@ use axum::{
     http::{StatusCode, header::RETRY_AFTER},
     response::{IntoResponse, Response},
 };
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::error::Error;
 use crate::state::{AppState, IpRecord, RecordsMap, SharedState};
@@ -30,13 +30,41 @@ impl IntoResponse for Error {
     }
 }
 
+/// Rounds up to whole seconds, with a minimum of 1.
+fn ceil_secs(d: Duration) -> u64 {
+    (d.as_secs() + u64::from(d.subsec_nanos() > 0)).max(1)
+}
+
 fn http_429(retry_after: Duration) -> Response {
-    let secs = retry_after.as_secs() + u64::from(retry_after.subsec_nanos() > 0);
     (
         StatusCode::TOO_MANY_REQUESTS,
-        [(RETRY_AFTER, secs.max(1).to_string())],
+        [(RETRY_AFTER, ceil_secs(retry_after).to_string())],
     )
         .into_response()
+}
+
+#[derive(Serialize)]
+pub(crate) struct BlockedIp {
+    ip: IpAddr,
+    retry_after_secs: u64,
+}
+
+pub(crate) async fn blocked_ips_handler(
+    State(state): State<SharedState>,
+) -> Result<Json<Vec<BlockedIp>>, Error> {
+    let now = Instant::now();
+    let records = state.records_read()?;
+    let blocked = records
+        .iter()
+        .filter_map(|(&ip, record)| {
+            let until = record.blocked_until.filter(|&u| u > now)?;
+            Some(BlockedIp {
+                ip,
+                retry_after_secs: ceil_secs(until - now),
+            })
+        })
+        .collect();
+    Ok(Json(blocked))
 }
 
 pub(crate) async fn check_ip_handler(
