@@ -121,6 +121,10 @@ fn block_ip(state: &AppState, record: &mut IpRecord, ip: IpAddr, now: Instant) {
 fn record_request(state: &AppState, record: &mut IpRecord, ip: IpAddr, now: Instant) {
     if record.timestamps.len() >= state.config.timestamp_bucket_size {
         // IMO this will never happen under normal circumstances
+        // Explanation:
+        // - if IP is already in block list, timestamps should not be accumulated.
+        // - if IP is not blocked, this indicates that the timestamp bucket is full
+        // - the only case where it might happen when number of requests to block is higher than the bucket size
         tracing::warn!(%ip, "(Require investigation) Timestamps exceeded max");
         state
             .ip_bucket_utiilization_spill_over
