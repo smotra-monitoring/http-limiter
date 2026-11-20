@@ -6,6 +6,7 @@ All notable changes are documented here. Format based on [Keep a Changelog](http
 
 ### Changed
 
+- Renamed the misnamed `http_limiter_blocked_ip_current` gauge to `http_limiter_tracked_ip_current`; it counts all tracked IPs, not only blocked ones. Grafana dashboard updated.
 - Logging uses `tracing` instead of `println!`/`eprintln!`; verbosity is controlled by `RUST_LOG` (default `info`). Log line format changed to structured fields.
 
 ### Added

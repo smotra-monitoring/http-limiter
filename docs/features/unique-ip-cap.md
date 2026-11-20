@@ -10,7 +10,7 @@ Memory use is bounded by `HTTP_LIMITER_MAX_UNIQUE_IPS` (default 200000).
 
 ## Metrics
 
-- `http_limiter_unique_ips_total`: currently tracked IPs
+- `http_limiter_tracked_ip_current`: currently tracked IPs
 - `http_limiter_unique_ip_limit_exceeded_total`: requests rejected because of the cap
 
 A growing `unique_ip_limit_exceeded_total` means the cap is too low or the service is under a many-source flood.
