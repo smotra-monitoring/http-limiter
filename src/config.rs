@@ -33,8 +33,9 @@ pub struct Config {
     pub block_time: Duration,
 
     /// Maximum number of unique IPs to track.
-    /// 200_000 will consume 256 MB of memory.
-    /// 100_000 will consume 128 MB of memory.
+    /// Estimated memory with default limits
+    /// 100_000 IPs up to 64 MB
+    /// 200_000 IPs up to 128 MB
     pub max_unique_ips: usize,
 
     /// "Garbage collection" interval for cleaning up idle IPs.
