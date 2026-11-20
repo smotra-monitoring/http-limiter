@@ -1,6 +1,7 @@
 axum
 dashmap
 Deque
+Grafana
 healthz
 oneshot
 tokio
