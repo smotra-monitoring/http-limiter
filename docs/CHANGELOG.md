@@ -9,8 +9,14 @@ All notable changes are documented here. Format based on [Keep a Changelog](http
 - Renamed the misnamed `http_limiter_blocked_ip_current` gauge to `http_limiter_tracked_ip_current`; it counts all tracked IPs, not only blocked ones. Grafana dashboard updated.
 - Logging uses `tracing` instead of `println!`/`eprintln!`; verbosity is controlled by `RUST_LOG` (default `info`). Log line format changed to structured fields.
 
+### Fixed
+
+- Corrected the memory estimates for the unique IP cap (previously overstated about 2x); see [Unique IP cap](features/unique-ip-cap.md).
+
 ### Added
 
+- `http_limiter_blocked_ip_current` gauge: number of currently blocked IPs.
+- `GET /blocked` returns the currently blocked IPs with their remaining block time.
 - Graceful shutdown on `SIGINT` / `SIGTERM`: in-flight requests are drained before exit.
 - Documentation: README, feature pages, architecture and development guides.
 

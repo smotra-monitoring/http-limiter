@@ -4,18 +4,18 @@
   "metadata": {
     "name": "admdh6x",
     "namespace": "default",
-    "uid": "3ee4bd8f-8764-4db5-a8fc-fb44d496cd58",
-    "resourceVersion": "1794419116576990",
-    "generation": 22,
-    "creationTimestamp": "2026-11-10T23:24:27Z",
+    "uid": "93d435ee-ddba-435f-a0d6-8459d1ba749a",
+    "resourceVersion": "1795212861862984",
+    "generation": 2,
+    "creationTimestamp": "2026-11-20T22:11:37Z",
     "labels": {
-      "grafana.app/deprecatedInternalID": "3604735507935232"
+      "grafana.app/deprecatedInternalID": "2706685629554688"
     },
     "annotations": {
       "grafana.app/createdBy": "user:bg3wedbisveo0b",
       "grafana.app/saved-from-ui": "Grafana v13.3.0 (6f8ce3c693)",
       "grafana.app/updatedBy": "user:bg3wedbisveo0b",
-      "grafana.app/updatedTimestamp": "2026-11-11T17:45:16Z"
+      "grafana.app/updatedTimestamp": "2026-11-20T22:14:21Z"
     }
   },
   "spec": {
@@ -683,7 +683,7 @@
         "kind": "Panel",
         "spec": {
           "id": 5,
-          "title": "Tracked IPs",
+          "title": "Blocked IPs",
           "description": "",
           "links": [],
           "data": {
@@ -703,7 +703,7 @@
                       "spec": {
                         "editorMode": "builder",
                         "exemplar": false,
-                        "expr": "http_limiter_tracked_ip_current",
+                        "expr": "http_limiter_blocked_ip_current",
                         "instant": false,
                         "legendFormat": "__auto",
                         "range": true
@@ -989,6 +989,121 @@
             }
           }
         }
+      },
+      "panel-8": {
+        "kind": "Panel",
+        "spec": {
+          "id": 8,
+          "title": "# of blocked IPs",
+          "description": "",
+          "links": [],
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "query": {
+                      "kind": "DataQuery",
+                      "group": "prometheus",
+                      "version": "v0",
+                      "datasource": {
+                        "name": "eg3x9i9qopddsb"
+                      },
+                      "spec": {
+                        "editorMode": "builder",
+                        "expr": "http_limiter_blocked_ip_current",
+                        "legendFormat": "__auto",
+                        "range": true
+                      }
+                    },
+                    "refId": "A",
+                    "hidden": false
+                  }
+                }
+              ],
+              "transformations": [],
+              "queryOptions": {}
+            }
+          },
+          "vizConfig": {
+            "kind": "VizConfig",
+            "group": "timeseries",
+            "version": "13.3.0",
+            "spec": {
+              "options": {
+                "legend": {
+                  "calcs": [],
+                  "displayMode": "list",
+                  "placement": "bottom",
+                  "showLegend": true
+                },
+                "tooltip": {
+                  "hideZeros": false,
+                  "mode": "single",
+                  "sort": "none"
+                }
+              },
+              "fieldConfig": {
+                "defaults": {
+                  "thresholds": {
+                    "mode": "percentage",
+                    "steps": [
+                      {
+                        "value": 0,
+                        "color": "green"
+                      }
+                    ]
+                  },
+                  "color": {
+                    "mode": "thresholds",
+                    "seriesBy": "last"
+                  },
+                  "custom": {
+                    "axisBorderShow": false,
+                    "axisCenteredZero": false,
+                    "axisColorMode": "text",
+                    "axisLabel": "",
+                    "axisPlacement": "auto",
+                    "barAlignment": 0,
+                    "barWidthFactor": 0.6,
+                    "drawStyle": "line",
+                    "fillOpacity": 27,
+                    "gradientMode": "scheme",
+                    "hideFrom": {
+                      "legend": false,
+                      "tooltip": false,
+                      "viz": false
+                    },
+                    "insertNulls": false,
+                    "lineInterpolation": "linear",
+                    "lineStyle": {
+                      "fill": "solid"
+                    },
+                    "lineWidth": 1,
+                    "pointSize": 3,
+                    "scaleDistribution": {
+                      "type": "linear"
+                    },
+                    "showPoints": "auto",
+                    "showValues": false,
+                    "spanNulls": false,
+                    "stacking": {
+                      "group": "A",
+                      "mode": "none"
+                    },
+                    "thresholdsStyle": {
+                      "mode": "off"
+                    }
+                  },
+                  "fieldMinMax": false
+                },
+                "overrides": []
+              }
+            }
+          }
+        }
       }
     },
     "layout": {
@@ -1042,7 +1157,7 @@
           {
             "kind": "RowsLayoutRow",
             "spec": {
-              "title": "Tracked IPs",
+              "title": "IPs",
               "collapse": false,
               "layout": {
                 "kind": "AutoGridLayout",
@@ -1057,6 +1172,15 @@
                         "element": {
                           "kind": "ElementReference",
                           "name": "panel-5"
+                        }
+                      }
+                    },
+                    {
+                      "kind": "AutoGridLayoutItem",
+                      "spec": {
+                        "element": {
+                          "kind": "ElementReference",
+                          "name": "panel-8"
                         }
                       }
                     },

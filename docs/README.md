@@ -45,6 +45,7 @@ curl -i -X POST http://localhost:8082/check \
 | Method | Path | Description |
 |---|---|---|
 | `POST` | `/check` | Body `{"ip": "<address>"}`; registers a request and returns the verdict |
+| `GET` | `/blocked` | JSON list of currently blocked IPs with remaining block time |
 | `GET` | `/metrics` | Prometheus text metrics |
 | `GET` | `/healthz/live` | Liveness probe |
 | `GET` | `/healthz/ready` | Readiness probe |

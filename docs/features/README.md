@@ -3,7 +3,7 @@
 | Feature | Description |
 |---|---|
 | [Rate limiting](rate-limiting.md) | Sliding-window request limit per IP |
-| [IP blocking](ip-blocking.md) | Temporary block after exceeding the limit |
+| [IP blocking](ip-blocking.md) | Temporary block after exceeding the limit; `GET /blocked` lists blocked IPs |
 | [Unique IP cap](unique-ip-cap.md) | Upper bound on tracked IPs |
 | [Idle cleanup](idle-cleanup.md) | Background eviction of inactive IPs |
 | [Metrics](metrics.md) | Prometheus metrics endpoint |

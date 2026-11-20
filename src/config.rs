@@ -26,12 +26,28 @@ pub struct Config {
     pub bind_addr: SocketAddr,
     pub timestamp_bucket_size: usize,
     pub requests_per_window: usize,
+
     pub rate_limit_window: Duration,
+
     /// How long an IP stays rejected after exceeding the limit; zero disables blocking.
     pub block_time: Duration,
+
+    /// Maximum number of unique IPs to track.
+    /// Estimated memory with default limits
+    /// 100_000 IPs up to 64 MB
+    /// 200_000 IPs up to 128 MB
     pub max_unique_ips: usize,
-    pub idle_time: Duration,
+
+    /// "Garbage collection" interval for cleaning up idle IPs.
     pub cleanup_interval: Duration,
+
+    /// Duration after which an idle IP will be cleaned-up.
+    ///
+    /// Caution: setting it to "zero" will have negative effect.
+    /// If it is 0, then every "garbage collection" ran will consider all IPs as idle
+    ///  and remove all IPs from the tracking map.
+    /// Which means that after every cleanup interval, all IPs will be reset to 0 timestamps.
+    pub idle_time: Duration,
 }
 
 impl Default for Config {
