@@ -66,7 +66,7 @@
                       },
                       "spec": {
                         "editorMode": "builder",
-                        "expr": "irate(http_limiter_http_requests_total[$__interval])",
+                        "expr": "irate(http_limiter_http_requests_total[$__rate_interval])",
                         "legendFormat": "total",
                         "range": true
                       }
@@ -307,7 +307,7 @@
                       },
                       "spec": {
                         "editorMode": "builder",
-                        "expr": "irate(http_limiter_ip_block_events_total[$__interval])",
+                        "expr": "irate(http_limiter_ip_block_events_total[$__rate_interval])",
                         "legendFormat": "__auto",
                         "range": true
                       }
@@ -422,7 +422,7 @@
                       },
                       "spec": {
                         "editorMode": "builder",
-                        "expr": "irate(http_limiter_requests_while_blocked_total[$__interval])",
+                        "expr": "irate(http_limiter_requests_while_blocked_total[$__rate_interval])",
                         "legendFormat": "__auto",
                         "range": true
                       }
@@ -760,7 +760,7 @@
                       },
                       "spec": {
                         "editorMode": "builder",
-                        "expr": "irate(http_limiter_unique_ip_limit_exceeded_total[$__interval])",
+                        "expr": "irate(http_limiter_unique_ip_limit_exceeded_total[$__rate_interval])",
                         "legendFormat": "__auto",
                         "range": true
                       }
@@ -874,7 +874,7 @@
                       },
                       "spec": {
                         "editorMode": "builder",
-                        "expr": "irate(http_limiter_ip_bucket_utiilization_spill_over[$__interval])",
+                        "expr": "irate(http_limiter_ip_bucket_utiilization_spill_over[$__rate_interval])",
                         "legendFormat": "__auto",
                         "range": true
                       }
